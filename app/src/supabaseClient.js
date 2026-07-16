@@ -212,16 +212,22 @@ export const pullMenuFromCloud = async () => {
     }
     
     // Delete local items that were deleted in the cloud
-    const allLocalCats = await db.categories.filter(c => !!c.cloud_id).toArray();
-    for (const lc of allLocalCats) {
-      if (!cloudCats.find(c => c.id === lc.cloud_id)) {
-        await db.categories.delete(lc.id);
+    // ONLY if the cloud actually has data (to prevent wiping on first run before push)
+    if (cloudCats.length > 0) {
+      const allLocalCats = await db.categories.filter(c => !!c.cloud_id).toArray();
+      for (const lc of allLocalCats) {
+        if (!cloudCats.find(c => c.id === lc.cloud_id)) {
+          await db.categories.delete(lc.id);
+        }
       }
     }
-    const allLocalProds = await db.products.filter(p => !!p.cloud_id).toArray();
-    for (const lp of allLocalProds) {
-      if (!cloudProds.find(p => p.id === lp.cloud_id)) {
-        await db.products.delete(lp.id);
+    
+    if (cloudProds.length > 0) {
+      const allLocalProds = await db.products.filter(p => !!p.cloud_id).toArray();
+      for (const lp of allLocalProds) {
+        if (!cloudProds.find(p => p.id === lp.cloud_id)) {
+          await db.products.delete(lp.id);
+        }
       }
     }
 
