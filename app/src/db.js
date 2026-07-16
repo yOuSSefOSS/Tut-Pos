@@ -2,7 +2,7 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('TutCafeDB');
 
-db.version(6).stores({
+db.version(7).stores({
   categories: '++id, cloud_id, name, type, synced, deleted', 
   products: '++id, cloud_id, name, price, categoryId, type, hasModifiers, synced, deleted', 
   orders: '++id, total, createdAt, synced', 
@@ -13,13 +13,13 @@ db.version(6).stores({
   recipes: '++id, productId, materialId, quantity',
   stockLogs: '++id, materialId, quantityAdded, cost, date, synced',
   settings: 'key, value'
-}).upgrade(tx => {
-  tx.categories.toCollection().modify(cat => {
+}).upgrade(async tx => {
+  await tx.categories.toCollection().modify(cat => {
     if (cat.synced === undefined) cat.synced = 0;
     if (cat.deleted === undefined) cat.deleted = 0;
     if (!cat.cloud_id) cat.cloud_id = crypto.randomUUID();
   });
-  tx.products.toCollection().modify(prod => {
+  await tx.products.toCollection().modify(prod => {
     if (prod.synced === undefined) prod.synced = 0;
     if (prod.deleted === undefined) prod.deleted = 0;
     if (!prod.cloud_id) prod.cloud_id = crypto.randomUUID();
