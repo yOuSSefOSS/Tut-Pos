@@ -10,8 +10,8 @@ export default function Settings() {
   
   const [activeTab, setActiveTab] = useState('modifiers'); // modifiers, categories, products
 
-  const products = useLiveQuery(() => db.products.toArray());
-  const categories = useLiveQuery(() => db.categories.toArray());
+  const products = useLiveQuery(() => db.products.filter(p => p.deleted !== 1).toArray());
+  const categories = useLiveQuery(() => db.categories.filter(c => c.deleted !== 1).toArray());
 
   // Category State
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -40,20 +40,26 @@ export default function Settings() {
 
   /* --- MODIFIERS LOGIC --- */
   const toggleModifiers = async (product) => {
-    await db.products.update(product.id, { hasModifiers: !product.hasModifiers });
+    await db.products.update(product.id, { hasModifiers: !product.hasModifiers, synced: 0 });
   };
 
   const updateCustomModifiers = async (product, field, value) => {
     const arrayValue = value.split(',').map(s => s.trim()).filter(Boolean);
     const updatedModifiers = { ...product.customModifiers, [field]: arrayValue };
-    await db.products.update(product.id, { customModifiers: updatedModifiers });
+    await db.products.update(product.id, { customModifiers: updatedModifiers, synced: 0 });
   };
 
   /* --- CATEGORIES LOGIC --- */
   const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!newCategoryName) return;
-    await db.categories.add({ name: newCategoryName, type: newCategoryType });
+    await db.categories.add({ 
+      cloud_id: crypto.randomUUID(), 
+      name: newCategoryName, 
+      type: newCategoryType, 
+      synced: 0, 
+      deleted: 0 
+    });
     setNewCategoryName('');
   };
 
@@ -65,7 +71,7 @@ export default function Settings() {
       return;
     }
     if (window.confirm('Are you sure you want to delete this category?')) {
-      await db.categories.delete(id);
+      await db.categories.update(id, { deleted: 1, synced: 0 });
     }
   };
 
@@ -78,11 +84,14 @@ export default function Settings() {
     if (!cat) return;
 
     await db.products.add({ 
+      cloud_id: crypto.randomUUID(),
       name: newProductName, 
       price: parseFloat(newProductPrice), 
       categoryId: cat.id, 
       type: cat.type, 
-      hasModifiers: newProductHasModifiers 
+      hasModifiers: newProductHasModifiers,
+      synced: 0,
+      deleted: 0
     });
     setNewProductName('');
     setNewProductPrice('');
@@ -91,7 +100,7 @@ export default function Settings() {
 
   const handleDeleteProduct = async (id) => {
     if (window.confirm('Are you sure you want to delete this product?')) {
-      await db.products.delete(id);
+      await db.products.update(id, { deleted: 1, synced: 0 });
     }
   };
 
@@ -102,7 +111,7 @@ export default function Settings() {
   };
 
   const saveEditProduct = async (id) => {
-    await db.products.update(id, { name: editProductName, price: parseFloat(editProductPrice) });
+    await db.products.update(id, { name: editProductName, price: parseFloat(editProductPrice), synced: 0 });
     setEditingProductId(null);
   };
 

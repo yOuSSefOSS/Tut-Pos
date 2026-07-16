@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { ShoppingCart, Coffee, Activity, Settings, RefreshCw } from 'lucide-react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, initMenu } from './db';
-import { syncToCloud } from './supabaseClient';
+import { syncToCloud, pullMenuFromCloud } from './supabaseClient';
 import { importPdfRecipes } from './importRecipes';
 
 // Components
@@ -45,7 +45,11 @@ function Navigation() {
       <div className="hidden md:flex flex-col mt-auto pt-8 border-t border-sand/20 w-full gap-2">
          <button onClick={syncToCloud} className="flex items-center gap-4 px-4 py-3 rounded-xl text-papyrus/60 hover:text-sand hover:bg-white/5 transition-all group">
            <RefreshCw size={20} className="group-hover:rotate-180 transition-transform duration-500" />
-           <span className="hidden lg:block font-semibold">Sync Data</span>
+           <span className="hidden lg:block font-semibold">Push Data to Cloud</span>
+         </button>
+         <button onClick={pullMenuFromCloud} className="flex items-center gap-4 px-4 py-3 rounded-xl text-papyrus/60 hover:text-sand hover:bg-white/5 transition-all group">
+           <RefreshCw size={20} className="group-hover:-rotate-180 transition-transform duration-500" />
+           <span className="hidden lg:block font-semibold">Pull Menu from Cloud</span>
          </button>
          <Link to="/settings" className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all group ${path === '/settings' ? 'bg-sand text-obsidian shadow-[0_0_15px_rgba(212,175,55,0.3)]' : 'text-papyrus/60 hover:text-sand hover:bg-white/5'}`}>
            <Settings size={20} className={path === '/settings' ? '' : 'group-hover:rotate-90 transition-transform duration-500'} />

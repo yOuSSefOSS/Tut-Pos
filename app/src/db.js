@@ -2,9 +2,9 @@ import Dexie from 'dexie';
 
 export const db = new Dexie('TutCafeDB');
 
-db.version(4).stores({
-  categories: '++id, name, type', 
-  products: '++id, name, price, categoryId, type, hasModifiers', 
+db.version(5).stores({
+  categories: '++id, cloud_id, name, type, synced, deleted', 
+  products: '++id, cloud_id, name, price, categoryId, type, hasModifiers, synced, deleted', 
   orders: '++id, total, createdAt, synced', 
   orderItems: '++id, orderId, productId, name, modifiers, quantity, price, subtotal, synced',
   expenses: '++id, amount, description, category, date, synced',
@@ -47,11 +47,11 @@ export const initMenu = async () => {
   console.log('Initializing default menu...');
   
   // Add Categories
-  const hotId = await db.categories.add({ name: 'Hot Drinks', type: 'hot' });
-  const coldId = await db.categories.add({ name: 'Cold Drinks', type: 'cold' });
-  const milkshakesId = await db.categories.add({ name: 'Milkshakes', type: 'cold' });
-  const smoothiesId = await db.categories.add({ name: 'Smoothies', type: 'cold' });
-  const freshJuiceId = await db.categories.add({ name: 'Fresh Juices', type: 'cold' });
+  const hotId = await db.categories.add({ cloud_id: crypto.randomUUID(), name: 'Hot Drinks', type: 'hot', synced: 0, deleted: 0 });
+  const coldId = await db.categories.add({ cloud_id: crypto.randomUUID(), name: 'Cold Drinks', type: 'cold', synced: 0, deleted: 0 });
+  const milkshakesId = await db.categories.add({ cloud_id: crypto.randomUUID(), name: 'Milkshakes', type: 'cold', synced: 0, deleted: 0 });
+  const smoothiesId = await db.categories.add({ cloud_id: crypto.randomUUID(), name: 'Smoothies', type: 'cold', synced: 0, deleted: 0 });
+  const freshJuiceId = await db.categories.add({ cloud_id: crypto.randomUUID(), name: 'Fresh Juices', type: 'cold', synced: 0, deleted: 0 });
 
   // Add Hot Drinks (Modifiers enabled for coffee/tea)
   const hotDrinks = [
@@ -69,7 +69,7 @@ export const initMenu = async () => {
     { name: 'French Coffee', price: 45, hasModifiers: true },
     { name: 'French Press', price: 55, hasModifiers: true },
     { name: 'Herbals', price: 25, hasModifiers: true },
-  ].map(p => ({ ...p, categoryId: hotId, type: 'hot' }));
+  ].map(p => ({ ...p, categoryId: hotId, type: 'hot', cloud_id: crypto.randomUUID(), synced: 0, deleted: 0 }));
 
   // Add Cold Drinks (Modifiers enabled for iced coffees)
   const icedDrinks = [
@@ -81,7 +81,7 @@ export const initMenu = async () => {
     { name: 'Pineapple Pinacolada', price: 65, hasModifiers: false },
     { name: 'Mix Soda', price: 65, hasModifiers: false },
     { name: 'Softdrinks', price: 30, hasModifiers: false },
-  ].map(p => ({ ...p, categoryId: coldId, type: 'cold' }));
+  ].map(p => ({ ...p, categoryId: coldId, type: 'cold', cloud_id: crypto.randomUUID(), synced: 0, deleted: 0 }));
   
   // Add Milkshakes (No sugar modifiers needed usually, but could be)
   const milkshakes = [
@@ -91,7 +91,7 @@ export const initMenu = async () => {
     { name: 'Blueberry Milkshake', price: 75, hasModifiers: false },
     { name: 'Strawberry Milkshake', price: 75, hasModifiers: false },
     { name: 'Oreo Milkshake', price: 75, hasModifiers: false },
-  ].map(p => ({ ...p, categoryId: milkshakesId, type: 'cold' }));
+  ].map(p => ({ ...p, categoryId: milkshakesId, type: 'cold', cloud_id: crypto.randomUUID(), synced: 0, deleted: 0 }));
 
   // Add Smoothies
   const smoothies = [
@@ -99,7 +99,7 @@ export const initMenu = async () => {
     { name: 'Blueberry Smoothie', price: 65, hasModifiers: false },
     { name: 'Mixberry Smoothie', price: 65, hasModifiers: false },
     { name: 'Pineapple Smoothie', price: 65, hasModifiers: false },
-  ].map(p => ({ ...p, categoryId: smoothiesId, type: 'cold' }));
+  ].map(p => ({ ...p, categoryId: smoothiesId, type: 'cold', cloud_id: crypto.randomUUID(), synced: 0, deleted: 0 }));
 
   // Add Fresh Juices
   const freshJuices = [
@@ -107,7 +107,7 @@ export const initMenu = async () => {
     { name: 'Strawberry Juice', price: 60, hasModifiers: false },
     { name: 'Watermelon Juice', price: 60, hasModifiers: false },
     { name: 'Lemon Juice', price: 40, hasModifiers: false },
-  ].map(p => ({ ...p, categoryId: freshJuiceId, type: 'cold' }));
+  ].map(p => ({ ...p, categoryId: freshJuiceId, type: 'cold', cloud_id: crypto.randomUUID(), synced: 0, deleted: 0 }));
 
   await db.products.bulkAdd([
     ...hotDrinks, 

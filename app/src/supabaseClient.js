@@ -34,9 +34,74 @@ async function syncTable(tableName, localTableName, mapToSupabase) {
   }
 }
 
+async function syncMenuToCloud() {
+  let syncedCount = 0;
+  
+  // 1. Categories
+  const unsyncedCats = await db.categories.where('synced').equals(0).toArray();
+  if (unsyncedCats.length > 0) {
+    for (const cat of unsyncedCats) {
+      if (cat.deleted) {
+        if (cat.cloud_id) {
+          await supabase.from('menu_categories').delete().eq('id', cat.cloud_id);
+        }
+        await db.categories.delete(cat.id);
+      } else {
+        if (!cat.cloud_id) {
+          cat.cloud_id = crypto.randomUUID();
+          await db.categories.update(cat.id, { cloud_id: cat.cloud_id });
+        }
+        await supabase.from('menu_categories').upsert({
+          id: cat.cloud_id,
+          name: cat.name,
+          type: cat.type
+        });
+        await db.categories.update(cat.id, { synced: 1 });
+      }
+      syncedCount++;
+    }
+  }
+
+  // 2. Products
+  const unsyncedProds = await db.products.where('synced').equals(0).toArray();
+  if (unsyncedProds.length > 0) {
+    for (const prod of unsyncedProds) {
+      if (prod.deleted) {
+        if (prod.cloud_id) {
+          await supabase.from('menu_products').delete().eq('id', prod.cloud_id);
+        }
+        await db.products.delete(prod.id);
+      } else {
+        if (!prod.cloud_id) {
+          prod.cloud_id = crypto.randomUUID();
+          await db.products.update(prod.id, { cloud_id: prod.cloud_id });
+        }
+        const cat = await db.categories.get(prod.categoryId);
+        if (cat && cat.cloud_id) {
+          await supabase.from('menu_products').upsert({
+            id: prod.cloud_id,
+            name: prod.name,
+            price: prod.price,
+            category_id: cat.cloud_id,
+            type: prod.type,
+            has_modifiers: prod.hasModifiers,
+            custom_modifiers: prod.customModifiers || null
+          });
+          await db.products.update(prod.id, { synced: 1 });
+        }
+      }
+      syncedCount++;
+    }
+  }
+  return syncedCount;
+}
+
 export const syncToCloud = async () => {
   try {
     let totalSynced = 0;
+
+    // 0. Sync Menu
+    totalSynced += await syncMenuToCloud();
 
     // 1. Sync Orders
     totalSynced += await syncTable('orders', 'orders', (order) => ({
@@ -97,3 +162,73 @@ export const syncToCloud = async () => {
     alert('Sync failed. Please ensure the Supabase tables have been created using the provided SQL script.');
   }
 }
+
+export const pullMenuFromCloud = async () => {
+  try {
+    const { data: cloudCats, error: catErr } = await supabase.from('menu_categories').select('*');
+    if (catErr) throw catErr;
+    
+    for (const cloudCat of cloudCats) {
+      const localCat = await db.categories.filter(c => c.cloud_id === cloudCat.id).first();
+      if (localCat) {
+        await db.categories.update(localCat.id, { name: cloudCat.name, type: cloudCat.type, synced: 1, deleted: 0 });
+      } else {
+        await db.categories.add({ cloud_id: cloudCat.id, name: cloudCat.name, type: cloudCat.type, synced: 1, deleted: 0 });
+      }
+    }
+    
+    const { data: cloudProds, error: prodErr } = await supabase.from('menu_products').select('*');
+    if (prodErr) throw prodErr;
+    
+    for (const cloudProd of cloudProds) {
+      const localCat = await db.categories.filter(c => c.cloud_id === cloudProd.category_id).first();
+      if (!localCat) continue;
+      
+      const localProd = await db.products.filter(p => p.cloud_id === cloudProd.id).first();
+      if (localProd) {
+        await db.products.update(localProd.id, {
+          name: cloudProd.name,
+          price: cloudProd.price,
+          categoryId: localCat.id,
+          type: cloudProd.type,
+          hasModifiers: cloudProd.has_modifiers,
+          customModifiers: cloudProd.custom_modifiers,
+          synced: 1,
+          deleted: 0
+        });
+      } else {
+        await db.products.add({
+          cloud_id: cloudProd.id,
+          name: cloudProd.name,
+          price: cloudProd.price,
+          categoryId: localCat.id,
+          type: cloudProd.type,
+          hasModifiers: cloudProd.has_modifiers,
+          customModifiers: cloudProd.custom_modifiers,
+          synced: 1,
+          deleted: 0
+        });
+      }
+    }
+    
+    // Delete local items that were deleted in the cloud
+    const allLocalCats = await db.categories.filter(c => !!c.cloud_id).toArray();
+    for (const lc of allLocalCats) {
+      if (!cloudCats.find(c => c.id === lc.cloud_id)) {
+        await db.categories.delete(lc.id);
+      }
+    }
+    const allLocalProds = await db.products.filter(p => !!p.cloud_id).toArray();
+    for (const lp of allLocalProds) {
+      if (!cloudProds.find(p => p.id === lp.cloud_id)) {
+        await db.products.delete(lp.id);
+      }
+    }
+
+    alert('Menu pulled from cloud successfully!');
+  } catch (err) {
+    console.error('Error pulling menu:', err);
+    alert('Failed to pull menu from cloud. Ensure tables exist and connection is stable.');
+  }
+}
+
